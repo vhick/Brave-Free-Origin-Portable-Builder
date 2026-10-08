@@ -1,0 +1,54 @@
+BRAVE FREE ORIGIN - TRUE PORTABLE EDITION
+========================================
+
+START HERE
+----------
+Double-click LAUNCH-PORTABLE.cmd.
+
+This is a PATCHED version of upstream Brave Free Origin, built from your synced GitHub
+fork. It keeps its settings, logs, .reg/hosts backups, and temporary shortcuts beside
+the application inside Data instead of your Windows profile.
+
+PORTABLE DATA
+-------------
+Data\Settings\settings.json   - UI settings and policy ownership ledger
+Data\Logs\                 - application logs
+Data\Backups\              - .reg and hosts file backups
+Data\Temp\                 - temporary shortcuts
+Data\Diagnostics\          - verification reports
+
+REGISTRY IS THE EXCEPTION
+-------------------------
+Brave Free Origin is a Brave POLICY manager. When you click Apply, Windows policies
+under HKLM\SOFTWARE\Policies\BraveSoftware (and optional hosts/updater changes) are
+changed intentionally. Those changes must stay in Windows for Brave to obey them.
+Portability of the TOOL is not the same as making Windows group policy portable.
+
+BEFORE A WINDOWS REINSTALL
+--------------------------
+Keep your entire portable folder and run SAVE-CURRENT-POLICIES.cmd if you want an
+additional copy of your live policies. The application also saves registry backups
+before Apply when the backup option is enabled.
+
+AFTER A CLEAN WINDOWS REINSTALL
+------------------------------
+You can run the portable tool normally, review its settings and Apply your desired
+policies. Alternatively you can run RESTORE-POLICY-BACKUP.cmd to import a trusted
+.reg backup; this is optional and requires explicit confirmation plus UAC.
+
+If you used the original non-portable version, close the tool and run
+MIGRATE-OLD-DATA.ps1 once to copy old settings/logs/backups. It leaves originals
+untouched. After testing, CLEAN-OLD-HOST-DATA.ps1 can remove only the two old
+BFO-owned data locations after typing a deliberate confirmation phrase.
+
+WARNING
+-------
+A settings.json from the old Windows install records the policies last applied
+by that BFO user. After reinstall, registry policies are initially absent; the
+file is not an automatic policy restorer. Use Apply or review a .reg import.
+
+Avoid the one-line online installer for this custom edition. It downloads and runs
+an official copy from temporary LocalAppData and does not include these patches.
+Use your GitHub Actions Builder for updates.
+
+VERIFY-PORTABLE.ps1 is read-only regarding Windows policy registry keys.

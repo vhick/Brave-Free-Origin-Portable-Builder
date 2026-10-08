@@ -1,20 +1,23 @@
-# Brave Free Origin Portable Builder — Inspection Edition
+# Brave Free Origin True-Portable Builder
 
-This is the **source inspection** step, not the final patched application. It is deliberately source-only because the `settings.json` ownership record determines whether registry values belong to Brave Free Origin or another tool.
+This is a normal repository, **not** the clean fork. It checks out the latest synced
+`YOUR-USERNAME/Brave-Free-Origin` fork and patches the temporary GitHub copy.
 
-The workflow reads the current source in your clean `Brave-Free-Origin` fork, collects the configuration/log/backup path implementation and creates a diagnostic ZIP. It does not run the application, change policies, or request administrator permission.
+## First run
 
-## Repository names
+Actions -> Build Brave Free Origin True Portable -> Run workflow -> `portable-data`.
 
-- Clean fork: `YOUR-USERNAME/Brave-Free-Origin` (fork of `TahaHydra/Brave-Free-Origin`)
-- Ordinary new repository: `YOUR-USERNAME/Brave-Free-Origin-Portable-Builder`
+The build runs upstream sandbox policy and locale tests, patches settings/logs/backups/
+temporary shortcut paths, then uses upstream `tools/Build-Package.ps1` to produce the
+main ZIP before adding user-facing portable helpers.
 
-Keep the clean fork unmodified. The current Universal Fork Sync already handles your forks; don't change its workflow yet.
+## Diagnostics
 
-## Run
+Choose `inspect-source` if a future upstream change causes the source patch to fail.
+Do not edit the clean fork; your Universal Fork Sync may force-update its main branch.
 
-GitHub repository → Actions → **Inspect Brave Free Origin portability** → Run workflow.
+## Scope
 
-After the green check, download the `Brave-Free-Origin-Inspection-<commit>` artifact and upload it here.
-
-The final version will replace this inspection-only builder with source patching, built-in self-tests, a packaged portable ZIP, migration and verification scripts, and change-triggered builds.
+This relocates *application-owned* persistence, not applied Brave policies. The
+Windows registry/hosts/services/tasks are intentionally modified only when the user
+chooses the corresponding features inside Brave Free Origin.
