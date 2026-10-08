@@ -1,0 +1,142 @@
+name: Build Brave Free Origin True Portable
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: What should the builder do?
+        required: true
+        default: portable-data
+        type: choice
+        options:
+          - portable-data
+          - inspect-source
+      source_repo:
+        description: Source repo (blank = YOUR-USERNAME/Brave-Free-Origin)
+        required: false
+        default: ""
+      source_ref:
+        description: Branch, tag, or commit
+        required: false
+        default: main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bfo-portable-builder
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Brave Free Origin Portable
+    runs-on: windows-2022
+    timeout-minutes: 40
+    steps:
+      - name: Checkout builder repository
+        uses: actions/checkout@v7
+
+      - name: Resolve source repository
+        id: source
+        shell: pwsh
+        env:
+          REQUESTED_REPO: ${{ inputs.source_repo }}
+          REQUESTED_REF: ${{ inputs.source_ref }}
+          DEFAULT_OWNER: ${{ github.repository_owner }}
+        run: |
+          $repo=$env:REQUESTED_REPO
+          if ([string]::IsNullOrWhiteSpace($repo)) { $repo="$env:DEFAULT_OWNER/Brave-Free-Origin" }
+          $ref=$env:REQUESTED_REF
+          if ([string]::IsNullOrWhiteSpace($ref)) { $ref='main' }
+          "repo=$repo" >> $env:GITHUB_OUTPUT
+          "ref=$ref" >> $env:GITHUB_OUTPUT
+          Write-Host "Source: $repo / $ref"
+
+      - name: Checkout clean Brave Free Origin fork
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ steps.source.outputs.repo }}
+          ref: ${{ steps.source.outputs.ref }}
+          path: upstream
+          fetch-depth: 1
+
+      - name: Record source revision
+        id: revision
+        shell: pwsh
+        run: |
+          $sha=(git -C upstream rev-parse HEAD).Trim()
+          "sha=$sha" >> $env:GITHUB_OUTPUT
+          Write-Host "Upstream source: $sha"
+
+      - name: Inspect current source
+        if: ${{ inputs.mode == 'inspect-source' }}
+        shell: pwsh
+        run: |
+          & .\scripts\Inspect-BFO-Portability.ps1 `
+            -SourceRoot "$PWD\upstream" `
+            -OutputRoot "$PWD\artifact\BFO-Inspection"
+
+      - name: Upload inspection
+        if: ${{ inputs.mode == 'inspect-source' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Brave-Free-Origin-Inspection-${{ steps.revision.outputs.sha }}
+          path: artifact/BFO-Inspection/**
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Patch upstream portable paths
+        if: ${{ inputs.mode == 'portable-data' }}
+        shell: pwsh
+        run: |
+          & .\scripts\Apply-Portable-Patch.ps1 -SourceRoot "$PWD\upstream"
+
+      - name: Verify portable source paths
+        if: ${{ inputs.mode == 'portable-data' }}
+        shell: pwsh
+        run: |
+          & .\scripts\Verify-Portable-Source.ps1 -SourceRoot "$PWD\upstream"
+
+      - name: Run upstream sandbox policy tests
+        if: ${{ inputs.mode == 'portable-data' }}
+        working-directory: upstream
+        shell: pwsh
+        run: |
+          $env:BFO_TEST_OUT = Join-Path $env:RUNNER_TEMP 'bfo-portable-sandbox-test'
+          & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\Brave-Free-Origin.ps1 -SelfTest .\tools\Test-App.ps1
+          if ($LASTEXITCODE -ne 0) { throw "BFO sandbox policy tests failed (exit $LASTEXITCODE)." }
+
+      - name: Run upstream locale tests
+        if: ${{ inputs.mode == 'portable-data' }}
+        working-directory: upstream
+        shell: pwsh
+        run: |
+          & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\tools\Test-Locales.ps1
+          if ($LASTEXITCODE -ne 0) { throw "Locale tests failed (exit $LASTEXITCODE)." }
+
+      - name: Build upstream portable ZIP
+        if: ${{ inputs.mode == 'portable-data' }}
+        working-directory: upstream
+        shell: pwsh
+        run: |
+          & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\tools\Build-Package.ps1 -OutFile "$env:RUNNER_TEMP\Brave-Free-Origin-Base.zip"
+          if ($LASTEXITCODE -ne 0) { throw "Upstream ZIP packager failed (exit $LASTEXITCODE)." }
+
+      - name: Assemble final portable ZIP with helper scripts
+        if: ${{ inputs.mode == 'portable-data' }}
+        shell: pwsh
+        run: |
+          & .\scripts\Assemble-Portable.ps1 `
+            -SourceRoot "$PWD\upstream" `
+            -KitRoot "$PWD" `
+            -BaseZip "$env:RUNNER_TEMP\Brave-Free-Origin-Base.zip" `
+            -OutputRoot "$PWD\artifact\Portable"
+
+      - name: Upload true-portable build
+        if: ${{ inputs.mode == 'portable-data' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Brave-Free-Origin-True-Portable-${{ steps.revision.outputs.sha }}
+          path: artifact/Portable/Brave-Free-Origin-True-Portable.zip
+          if-no-files-found: error
+          retention-days: 30
